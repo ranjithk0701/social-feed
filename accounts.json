@@ -1,0 +1,41 @@
+{
+  "settings": {
+    "hoursToKeep": 24,
+    "maxPostsPerAccount": 5
+  },
+  "actors": {
+    "instagram": "apify~instagram-post-scraper",
+    "linkedinProfiles": "harvestapi~linkedin-profile-posts",
+    "linkedinPages": "harvestapi~linkedin-company-posts"
+  },
+  "instagram": [
+    {
+      "name": "Suganya R",
+      "username": "suganyar89"
+    },
+    {
+      "name": "Menaka R",
+      "username": "rmenaka2026"
+    },
+    {
+      "name": "Wrench Wise CSE",
+      "username": "wrench_wise_cse"
+    }
+  ],
+  "linkedinProfiles": [
+    {
+      "name": "Suganya R",
+      "url": "https://www.linkedin.com/in/suganya-ramu23"
+    },
+    {
+      "name": "Menaka R",
+      "url": "https://www.linkedin.com/in/menaka-r"
+    }
+  ],
+  "linkedinPages": [
+    {
+      "name": "Wrench Wise Computer Science",
+      "url": "https://www.linkedin.com/showcase/wrench-wise-computer-science/"
+    }
+  ]
+}

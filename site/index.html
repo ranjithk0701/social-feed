@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Today's Posts</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <h1>Today's Posts</h1>
+      <p id="updated-text" class="updated">Loading...</p>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-filter="all">All</button>
+      <button class="tab" data-filter="instagram">Instagram</button>
+      <button class="tab" data-filter="linkedin">LinkedIn</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="post-list" class="post-list"></div>
+    <p id="empty-message" class="empty hidden">No new posts in the last 24 hours.</p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
