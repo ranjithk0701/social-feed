@@ -2,10 +2,10 @@ name: Update posts
 
 on:
   schedule:
-    - cron: "0 */12 * * *"
+    - cron: "17 0,12 * * *"
   workflow_dispatch:
   push:
-    branches:
+    branches:s
       - main
 
 permissions:
