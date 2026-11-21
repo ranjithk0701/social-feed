@@ -121,6 +121,10 @@ main {
   background: #0a66c2;
 }
 
+.badge.youtube {
+  background: #e62117;
+}
+
 .account {
   font-size: 14px;
   font-weight: 600;
@@ -172,7 +176,34 @@ main {
     font-size: 21px;
   }
 
+  .tabs {
+    padding: 10px 12px 14px 12px;
+    gap: 5px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    padding: 7px 9px;
+    font-size: 12.5px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
   .post-list {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  .tab {
+    padding: 7px 8px;
+    font-size: 12px;
   }
 }

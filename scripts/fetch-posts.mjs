@@ -79,6 +79,150 @@ async function callApify(actorId, input) {
   throw lastError;
 }
 
+async function fetchTextOnce(requestUrl) {
+  const response = await fetch(requestUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; social-feed)"
+    },
+    signal: AbortSignal.timeout(30000)
+  });
+
+  if (!response.ok) {
+    throw new Error("YouTube answered " + response.status);
+  }
+
+  const text = await response.text();
+  return text;
+}
+
+async function fetchTextWithRetry(requestUrl) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 2; attempt = attempt + 1) {
+    try {
+      const text = await fetchTextOnce(requestUrl);
+      return text;
+    } catch (error) {
+      lastError = error;
+      console.error("Attempt " + attempt + " failed: " + error.message);
+
+      if (attempt < 2) {
+        await wait(10000);
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+function decodeXmlText(text) {
+  let result = String(text);
+  result = result.replace(/&lt;/g, "<");
+  result = result.replace(/&gt;/g, ">");
+  result = result.replace(/&quot;/g, "\"");
+  result = result.replace(/&#39;/g, "'");
+  result = result.replace(/&apos;/g, "'");
+  result = result.replace(/&amp;/g, "&");
+  return result;
+}
+
+function readTagValue(text, tagName) {
+  const pattern = new RegExp("<" + tagName + "[^>]*>([\\s\\S]*?)</" + tagName + ">");
+  const match = pattern.exec(text);
+
+  if (!match) {
+    return "";
+  }
+
+  const decodedText = decodeXmlText(match[1]);
+  return decodedText.trim();
+}
+
+function readLinkHref(entryText) {
+  const firstPattern = /<link[^>]*rel="alternate"[^>]*href="([^"]+)"/;
+  const firstMatch = firstPattern.exec(entryText);
+
+  if (firstMatch) {
+    return decodeXmlText(firstMatch[1]);
+  }
+
+  const secondPattern = /<link[^>]*href="([^"]+)"[^>]*rel="alternate"/;
+  const secondMatch = secondPattern.exec(entryText);
+
+  if (secondMatch) {
+    return decodeXmlText(secondMatch[1]);
+  }
+
+  return "";
+}
+
+function readThumbnailUrl(entryText) {
+  const pattern = /<media:thumbnail[^>]*url="([^"]+)"/;
+  const match = pattern.exec(entryText);
+
+  if (!match) {
+    return "";
+  }
+
+  return decodeXmlText(match[1]);
+}
+
+function parseYoutubeFeed(feedText) {
+  const videos = [];
+  const entryPattern = /<entry>([\s\S]*?)<\/entry>/g;
+  let match = entryPattern.exec(feedText);
+
+  while (match !== null) {
+    const entryText = match[1];
+    const videoId = readTagValue(entryText, "yt:videoId");
+    const title = readTagValue(entryText, "title");
+    const published = readTagValue(entryText, "published");
+
+    let videoUrl = readLinkHref(entryText);
+
+    if (videoUrl === "" && videoId !== "") {
+      videoUrl = "https://www.youtube.com/watch?v=" + videoId;
+    }
+
+    let thumbnailUrl = readThumbnailUrl(entryText);
+
+    if (thumbnailUrl === "" && videoId !== "") {
+      thumbnailUrl = "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg";
+    }
+
+    videos.push({
+      videoId: videoId,
+      title: title,
+      published: published,
+      url: videoUrl,
+      thumbnail: thumbnailUrl
+    });
+
+    match = entryPattern.exec(feedText);
+  }
+
+  return videos;
+}
+
+async function fetchYoutubeItems(channels) {
+  const allVideos = [];
+
+  for (let channelIndex = 0; channelIndex < channels.length; channelIndex = channelIndex + 1) {
+    const channel = channels[channelIndex];
+    const feedUrl = "https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.channelId;
+    const feedText = await fetchTextWithRetry(feedUrl);
+    const videos = parseYoutubeFeed(feedText);
+
+    for (let videoIndex = 0; videoIndex < videos.length; videoIndex = videoIndex + 1) {
+      const video = videos[videoIndex];
+      video.accountName = channel.name;
+      allVideos.push(video);
+    }
+  }
+
+  return allVideos;
+}
+
 function readTimeFromValue(value) {
   if (value === undefined || value === null) {
     return null;
@@ -277,8 +421,37 @@ function normalizeLinkedinItem(item, accounts) {
   };
 }
 
+function normalizeYoutubeItem(item, accounts) {
+  if (!item || !item.url) {
+    return null;
+  }
+
+  const postTime = readTimeFromValue(item.published);
+
+  if (postTime === null) {
+    return null;
+  }
+
+  return {
+    id: item.url,
+    platform: "youtube",
+    account: item.accountName,
+    url: item.url,
+    text: cutText(item.title, 400),
+    image: item.thumbnail,
+    postedAt: new Date(postTime).toISOString()
+  };
+}
+
 async function runJob(job) {
-  const items = await callApify(job.actorId, job.input);
+  let items = [];
+
+  if (job.fetchItems) {
+    items = await job.fetchItems();
+  } else {
+    items = await callApify(job.actorId, job.input);
+  }
+
   console.log(job.name + ": " + items.length + " items received");
 
   const posts = [];
@@ -358,6 +531,33 @@ if (config.linkedinPages.length > 0) {
       postedLimit: "24h",
       includeReposts: false,
       includeQuotePosts: true
+    }
+  });
+}
+
+const validYoutubeChannels = [];
+
+if (config.youtube) {
+  for (let index = 0; index < config.youtube.length; index = index + 1) {
+    const channel = config.youtube[index];
+    const channelIdText = String(channel.channelId);
+    const looksValid = /^UC[A-Za-z0-9_-]{22}$/.test(channelIdText);
+
+    if (looksValid) {
+      validYoutubeChannels.push(channel);
+    } else {
+      console.log("::warning::YouTube channel " + channel.name + " skipped. Put the real channelId in accounts.json");
+    }
+  }
+}
+
+if (validYoutubeChannels.length > 0) {
+  jobs.push({
+    name: "YouTube",
+    accounts: validYoutubeChannels,
+    normalizeItem: normalizeYoutubeItem,
+    fetchItems: function () {
+      return fetchYoutubeItems(validYoutubeChannels);
     }
   });
 }

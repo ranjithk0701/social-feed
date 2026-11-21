@@ -70,6 +70,7 @@ function getFreshPosts() {
 function updateTabLabels(freshPosts) {
   let instagramCount = 0;
   let linkedinCount = 0;
+  let youtubeCount = 0;
 
   for (let index = 0; index < freshPosts.length; index = index + 1) {
     if (freshPosts[index].platform === "instagram") {
@@ -78,6 +79,10 @@ function updateTabLabels(freshPosts) {
 
     if (freshPosts[index].platform === "linkedin") {
       linkedinCount = linkedinCount + 1;
+    }
+
+    if (freshPosts[index].platform === "youtube") {
+      youtubeCount = youtubeCount + 1;
     }
   }
 
@@ -95,6 +100,10 @@ function updateTabLabels(freshPosts) {
 
     if (filterName === "linkedin") {
       button.textContent = "LinkedIn (" + linkedinCount + ")";
+    }
+
+    if (filterName === "youtube") {
+      button.textContent = "YouTube (" + youtubeCount + ")";
     }
 
     if (filterName === selectedFilter) {
@@ -124,6 +133,10 @@ function makePlatformName(platform) {
 
   if (platform === "linkedin") {
     return "LinkedIn";
+  }
+
+  if (platform === "youtube") {
+    return "YouTube";
   }
 
   return platform;
@@ -182,7 +195,11 @@ function createPostCard(post) {
 
   const openLink = document.createElement("span");
   openLink.className = "open-link";
-  openLink.textContent = "Open post →";
+  if (post.platform === "youtube") {
+    openLink.textContent = "Watch video →";
+  } else {
+    openLink.textContent = "Open post →";
+  }
   card.appendChild(openLink);
 
   return card;
